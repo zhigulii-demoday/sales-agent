@@ -1,0 +1,60 @@
+services:
+
+
+  clickhouse:
+    image: yandex/clickhouse-server
+    networks:
+      - ch
+    environment:
+      # Default user and database will be created using `init-defaults.sh` script
+      CLICKHOUSE_DB:  ${CLICKHOUSE_DB}
+      CLICKHOUSE_USER:  ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD:  ${CLICKHOUSE_PASSWORD}
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 262144
+        hard: 262144
+    ports:
+      - '8123:8123'
+      - '9000:9000'
+    volumes:
+      - ./clickhouse-data:/var/lib/clickhouse:cached
+
+  clickhouse-init:
+    image: yandex/clickhouse-server
+    depends_on:
+      - clickhouse
+    restart: "no"
+    networks:
+      - ch
+    volumes:
+      - ./db_scripts:/db_scripts
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      while ! clickhouse-client --host clickhouse --user ${CLICKHOUSE_USER} --password ${CLICKHOUSE_PASSWORD} -q \"SHOW databases;\"; do
+          echo waiting for clickhouse up
+          sleep 1
+      done
+
+      clickhouse-client --host clickhouse --user ${CLICKHOUSE_USER} --password ${CLICKHOUSE_PASSWORD} --queries-file db_scripts/init_database.sql
+
+      # tail -f /dev/null
+      "
+
+
+  postgres:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER:  ${POSTGRES_USER}
+      POSTGRES_DB:  ${POSTGRES_DB}
+      POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD}
+    volumes:
+      - ./pg-data:/var/lib/postgresql/data 
+
+
+
+networks:
+  ch:
