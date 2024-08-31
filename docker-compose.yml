@@ -4,7 +4,7 @@ services:
   clickhouse:
     image: yandex/clickhouse-server
     networks:
-      - ch
+      - ch_network
     environment:
       # Default user and database will be created using `init-defaults.sh` script
       CLICKHOUSE_DB:  ${CLICKHOUSE_DB}
@@ -27,7 +27,7 @@ services:
       - clickhouse
     restart: "no"
     networks:
-      - ch
+      - ch_network
     volumes:
       - ./db_scripts:/db_scripts
     entrypoint: [ '/bin/sh', '-c' ]
@@ -47,6 +47,11 @@ services:
   postgres:
     image: postgres:16
     restart: always
+    networks:
+      - pg_network
+    ports:
+      - '6432:6432'
+      - '5432:5432'
     environment:
       POSTGRES_USER:  ${POSTGRES_USER}
       POSTGRES_DB:  ${POSTGRES_DB}
@@ -57,4 +62,5 @@ services:
 
 
 networks:
-  ch:
+  ch_network:
+  pg_network:
