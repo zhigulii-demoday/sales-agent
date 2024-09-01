@@ -11,6 +11,9 @@ sqlalchemy = "^2.0.32"
 python-dotenv = "^1.0.1"
 asyncpg = "^0.29.0"
 pydantic = "^2.8.2"
+fastapi = {extras = ["standart"], version = "^0.112.2"}
+uvicorn = "^0.30.6"
+streamlit = "^1.38.0"
 
 
 [build-system]
