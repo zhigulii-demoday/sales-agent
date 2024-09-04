@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, validator
 from pydantic.functional_validators import AfterValidator
-from typing import List, Annotated
+from typing import List, Annotated, Optional
 
 
 class platform_post(BaseModel):
@@ -16,6 +16,23 @@ class platform_get(BaseModel):
                                 description="Наименование платформы"
                                 )
 
+class message_post(BaseModel):
+    username: str = Field(
+            description="Почта или username телеграм"
+    )
+    text: str = Field(
+            description="Текст сообщения"
+    )
+    chat_type: str = Field(
+            description="Типа чата: tg/mail"
+    )
+    @validator('chat_type')
+    def chat_type_validator(cls, v):
+            if v not in ['tg', 'mail']:
+                    raise ValueError('Supported chat types: "tg", "mail"')
+            return v 
+    subject: Optional[str] = Field(default=None, description="Тема сообщения")
+    message_id: Optional[str] = Field(default=None, description="Идентификатор сообщения")
 
 # class platform_post(BaseModel):
 #         user_id: int =          Field(

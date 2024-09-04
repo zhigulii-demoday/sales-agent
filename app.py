@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,7 @@ from fastapi.openapi.docs import (
 )
 from fastapi.staticfiles import StaticFiles
 
+from messages.telegram_scripts import main_listener
 
 app = FastAPI(
     debug=False,
@@ -24,6 +26,10 @@ app = FastAPI(
     redoc_url=None,
     swagger_ui_parameters={'syntaxHighlight': False}
 )
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(main_listener())
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
