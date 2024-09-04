@@ -14,6 +14,9 @@ pydantic = "^2.8.2"
 fastapi = {extras = ["standart"], version = "^0.112.2"}
 uvicorn = "^0.30.6"
 streamlit = "^1.38.0"
+openpyxl = "^3.1.5"
+tqdm = "^4.66.5"
+pgvector = "^0.3.2"
 
 
 [build-system]

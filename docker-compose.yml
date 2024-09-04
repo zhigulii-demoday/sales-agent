@@ -45,7 +45,10 @@ services:
 
 
   postgres:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile.postgres
     restart: always
     networks:
       - pg_network
