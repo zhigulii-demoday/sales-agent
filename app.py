@@ -16,6 +16,7 @@ from fastapi.openapi.docs import (
 )
 from fastapi.staticfiles import StaticFiles
 
+from messages.emai_scripts import wait_for_reply
 from messages.telegram_scripts import main_listener
 
 app = FastAPI(
@@ -30,6 +31,7 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(main_listener())
+    asyncio.create_task(wait_for_reply())
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

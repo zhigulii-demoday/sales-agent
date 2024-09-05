@@ -24,6 +24,8 @@ SMTP_SERVER = os.getenv('SMTP_SERVER')
 IMAP_PORT = int(os.getenv('IMAP_PORT'))
 SMTP_PORT = int(os.getenv('SMTP_PORT'))
 
+CACHE_FILE = 'email_cache.txt'
+
 async def send_email(to_email: str, body: str, message_id: str | None = None, subject: str | None = None):
     msg = EmailMessage()
     msg['From'] = EMAIL_ACCOUNT
@@ -46,6 +48,30 @@ async def send_email(to_email: str, body: str, message_id: str | None = None, su
         username=EMAIL_ACCOUNT,
         password=APP_PASSWORD,
     )
+
+    await update_cache(to_email)
+
+
+async def update_cache(to_email):
+    if not os.path.exists(CACHE_FILE):
+        with open(CACHE_FILE, 'w') as f:
+            f.write(to_email + '\n')
+    else:
+        with open(CACHE_FILE, 'r') as f:
+            emails = f.read().splitlines()
+
+        if to_email not in emails:
+            with open(CACHE_FILE, 'a') as f:
+                f.write(to_email + '\n')
+
+
+async def load_cache():
+    if not os.path.exists(CACHE_FILE):
+        return []
+    
+    with open(CACHE_FILE, 'r') as f:
+        return f.read().splitlines()
+
 
 
 async def process_message(data, client: IMAP4_SSL, from_email):
@@ -88,43 +114,69 @@ async def process_message(data, client: IMAP4_SSL, from_email):
     #requests.post(url=BASE_API_URL+'tg_endpoint', data=request_body.to_json())
 
 
-async def monitor_inbox(from_email: str, client: IMAP4_SSL):
+async def monitor_inbox(client: IMAP4_SSL):
     await client.select('INBOX')
-    await client.idle_start() 
 
-    # TODO: установить временные рамки проверки почты
+    cache_emails = await load_cache()
+    if not cache_emails:
+        print("No emails in cache.")
+        return
+
     while True:
-        # Проверка почты каждые 5 сек (в тестовом режиме)
-        await asyncio.sleep(5)
+        print("Waiting for new messages...")
+        try:
 
-        client.idle_done()  
+            # Ждем некоторое время (например, 5 минут)
+            await asyncio.sleep(300)
 
-        # Смотрим инбокс за последние три дня
-        three_days_ago = (datetime.date.today() - datetime.timedelta(days=3)).strftime('%d-%b-%Y')
-        status, messages = await client.search('UNSEEN SINCE "{}" FROM "{}"'.format(three_days_ago, from_email))
-        if status == 'OK' and messages[0]:
-            # Письмо автоматически становится прочитанным и не выводится второй раз
-            _, data = await client.fetch(int(messages[0].split()[-1]), '(RFC822)')
-            await process_message(data, client, from_email)
+            print("Checking for new messages...")
+            three_days_ago = (datetime.date.today() - datetime.timedelta(days=3)).strftime('%d-%b-%Y')
+            status, messages = await client.search(f'UNSEEN SINCE "{three_days_ago}"')
 
-        await client.idle_start()
+            if status != 'OK' or not messages or not messages[0]:
+                print("No new messages or search failed.")
+                continue
 
-# TODO: Установить таймаут ожидания ответа
-async def wait_for_reply(from_email, timeout=300):
-    # Таймаут ожидания ответа 300 сек
-    client = IMAP4_SSL(IMAP_SERVER, timeout=timeout) 
+            # Перебираем все сообщения
+            for num in messages[0].split():
+                fetch_status, data = await client.fetch(int(num), '(RFC822)')
+
+                if fetch_status != 'OK' or not data:
+                    print(f"Failed to fetch message {num}")
+                    continue
+
+                msg = email.message_from_bytes(data[1])
+                from_header = msg.get("From")
+                from_name, from_email_address = parseaddr(from_header)
+
+                # Проверяем, есть ли отправитель в кэше
+                if from_email_address in cache_emails:
+                    await process_message(data, client, from_email_address)
+
+        except asyncio.CancelledError:
+            print("Task was cancelled.")
+            await client.idle_done()  
+            break
+        except Exception as e:
+            print(f"Error during monitoring inbox: {e}")
+
+
+async def wait_for_reply():
+    client = IMAP4_SSL(IMAP_SERVER)
     await client.wait_hello_from_server()
     await client.login(EMAIL_ACCOUNT, APP_PASSWORD)
 
     try:
-        await asyncio.wait_for(monitor_inbox(from_email, client), timeout)
-    except asyncio.TimeoutError:
-        print(f"No reply received from {from_email} within the timeout period")
+        await monitor_inbox(client)  
     except asyncio.CancelledError:
-        print("Task was cancelled")
+        print("Task was cancelled.")
+    except Exception as e:
+        print(f"Error during wait_for_reply: {e}")
     finally:
         try:
             await client.logout()
         except Exception as e:
             print(f"Error during logout: {e}")
+
+
 

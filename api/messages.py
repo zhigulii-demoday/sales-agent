@@ -20,5 +20,4 @@ async def send(
         await send_message(message_info.username, message_info.text, message_info.message_id)
     elif message_info.chat_type == 'mail':
         await send_email(to_email=message_info.username, body=message_info.text, message_id=message_info.message_id, subject=message_info.subject)
-        asyncio.create_task(wait_for_reply(message_info.username))  
     return {"status": "Message sent successfully"}  

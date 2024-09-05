@@ -21,19 +21,22 @@ async def send_message(user: str, message: str, message_id: str | None = None):
         await client.send_message(user, message)
 
 async def listener():
-    @client.on(events.NewMessage())
-    async def handler(event):
+    try:
+        @client.on(events.NewMessage())
+        async def handler(event):
+            sender = await event.get_sender()
+            message = event.message.text
+            message_id = event.message.id
+            if sender:
+                request_body = models.AnswerModel(sender.username, message, message_id, 'tg')
+            
+                # TODO: Добавить эндпоинт
+                print(request_body)
+                #requests.post(url=BASE_API_URL+'tg_endpoint', data=request_body.to_json())
 
-        sender = await event.get_sender()
-        message = event.message.text
-        message_id = event.message.id
-        request_body = models.AnswerModel(sender.username, message, message_id, 'tg')
-        
-        # TODO: Добавить эндпоинт
-        print(request_body)
-        #requests.post(url=BASE_API_URL+'tg_endpoint', data=request_body.to_json())
-
-    await client.run_until_disconnected()
+        await client.run_until_disconnected()
+    except asyncio.CancelledError:
+            print("Task was cancelled.")
 
 async def main_listener():
     await client.start(PHONE_NUMBER)
