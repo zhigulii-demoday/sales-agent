@@ -1,8 +1,9 @@
 CREATE TABLE logs.message_logs
 (
     `platform` LowCardinality(String),
-    `platform_id` LowCardinality(String),
-    `our_message` Bool,
+    `platform_user` LowCardinality(String),
+    `platform_message_id` LowCardinality(String),
+    `is_user_message` Bool,
     `message` String,
     `created_at` DateTime('Europe/Moscow')
 )

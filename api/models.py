@@ -17,34 +17,31 @@ class platform_get(BaseModel):
                                 )
 
 
-# class platform_post(BaseModel):
-#         user_id: int =          Field(
-#                                 description="VKid Пользователя"
-#                                 )
-#         region_id: int =        Field(
-#                                 default=78, description="ID Региона (В будущем будет заполняться по JWT, сейчас заполняется автоматически Петербургом)"
-#                                 )
-#         name: str = Field(
-#                                 description="Наименование сервиса/страницы (/pets, /choose_service)"
-#                                 )
-#         screen_name: str =      Field(
-#                                 default="", description="Наименование вкладки внутри сервиса (leisure, map, utility, reference) \n Пустое значение только в Уборке дорог и Сообщениях по ЖКХ, т.к. там нет вкладок"
-#                                 )
-#         tab_name: str =      Field(
-#                                 default="", description="Наименование таба внутри сервиса (места, маршруты в Красивых местах))"
-#                                 )                                
-#         event_type: str = Field(
-#                                 description="Тип действия (type_navgo, phone, button, ad_pop_up)"
-#                                 )
-#         data: str =             Field(
-#                                 default="", description="(Как мы считаем ваш вклад, Все сервисы, Фильтр) При event_type ap_pop_up, ad_modal, button сюда заносится наименование Попапа, Модального окна, Кнопки итд (Если модальное окно, попап берется из https://yazzh-custom.gate.petersburg.ru/ - название должно соответствовать полю category из запроса"
-#                                 )
-#         utm_campaign: str =     Field(
-#                                 default=""
-#                                 )
-#         utm_source: str =       Field(
-#                                 default=""
-#                                 )
-#         utm_term: str =         Field(
-#                                 default=""
-#                                 )
+class logs_post(BaseModel):
+        platform: str =          Field(
+                                description="tg / mail"
+                                )
+        platform_user: str = Field(
+                                description="tgid / user email"
+                                )
+        platform_message_id: str = Field(
+                                description="message uid"
+                                )
+        is_user_message: bool = Field(
+               description = 'is user message or bots'
+        )
+        message: str = Field(
+               description = 'message text'
+        )
+#         created_at: bool = Field(
+#                description = 'is user message or bots'
+#         )
+
+
+class logs_get(BaseModel):
+        platform: str 
+        platform_user: str 
+        platform_message_id: str 
+        is_user_message: bool 
+        message: str 
+        created_at: bool 
