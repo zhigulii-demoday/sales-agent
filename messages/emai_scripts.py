@@ -13,6 +13,7 @@ import requests
 from . import models
 from email.utils import parseaddr
 from bs4 import BeautifulSoup
+from .cache_ops import update_cache, load_cache
 
 load_dotenv()
 
@@ -23,8 +24,6 @@ IMAP_SERVER = os.getenv('IMAP_SERVER')
 SMTP_SERVER = os.getenv('SMTP_SERVER')
 IMAP_PORT = int(os.getenv('IMAP_PORT'))
 SMTP_PORT = int(os.getenv('SMTP_PORT'))
-
-CACHE_FILE = 'email_cache.txt'
 
 async def send_email(to_email: str, body: str, message_id: str | None = None, subject: str | None = None):
     msg = EmailMessage()
@@ -50,28 +49,6 @@ async def send_email(to_email: str, body: str, message_id: str | None = None, su
     )
 
     await update_cache(to_email)
-
-
-async def update_cache(to_email):
-    if not os.path.exists(CACHE_FILE):
-        with open(CACHE_FILE, 'w') as f:
-            f.write(to_email + '\n')
-    else:
-        with open(CACHE_FILE, 'r') as f:
-            emails = f.read().splitlines()
-
-        if to_email not in emails:
-            with open(CACHE_FILE, 'a') as f:
-                f.write(to_email + '\n')
-
-
-async def load_cache():
-    if not os.path.exists(CACHE_FILE):
-        return []
-    
-    with open(CACHE_FILE, 'r') as f:
-        return f.read().splitlines()
-
 
 
 async def process_message(data, client: IMAP4_SSL, from_email):
@@ -115,7 +92,7 @@ async def process_message(data, client: IMAP4_SSL, from_email):
 
 
 async def monitor_inbox(client: IMAP4_SSL):
-    await client.select('INBOX')
+    
 
     cache_emails = await load_cache()
     if not cache_emails:
@@ -125,19 +102,21 @@ async def monitor_inbox(client: IMAP4_SSL):
     while True:
         print("Waiting for new messages...")
         try:
-
+            
             # Ждем некоторое время (например, 5 минут)
-            await asyncio.sleep(300)
-
+            await asyncio.sleep(5)
+            await client.select('INBOX')
             print("Checking for new messages...")
             three_days_ago = (datetime.date.today() - datetime.timedelta(days=3)).strftime('%d-%b-%Y')
-            status, messages = await client.search(f'UNSEEN SINCE "{three_days_ago}"')
+            status, messages = await client.search(f'ALL UNSEEN')
 
             if status != 'OK' or not messages or not messages[0]:
                 print("No new messages or search failed.")
+                messages = ''
                 continue
 
             # Перебираем все сообщения
+            print(messages)
             for num in messages[0].split():
                 fetch_status, data = await client.fetch(int(num), '(RFC822)')
 
@@ -150,7 +129,9 @@ async def monitor_inbox(client: IMAP4_SSL):
                 from_name, from_email_address = parseaddr(from_header)
 
                 # Проверяем, есть ли отправитель в кэше
+                print(cache_emails)
                 if from_email_address in cache_emails:
+                    print(from_email_address)
                     await process_message(data, client, from_email_address)
 
         except asyncio.CancelledError:

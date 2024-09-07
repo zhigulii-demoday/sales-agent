@@ -33,6 +33,11 @@ class message_post(BaseModel):
             return v 
     subject: Optional[str] = Field(default=None, description="Тема сообщения")
     message_id: Optional[str] = Field(default=None, description="Идентификатор сообщения")
+    
+class delete_user(BaseModel):
+        username: str = Field(
+            description="Почта или username телеграм"
+    )
 
 # class platform_post(BaseModel):
 #         user_id: int =          Field(
