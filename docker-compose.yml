@@ -6,7 +6,6 @@ services:
     networks:
       - ch_network
     environment:
-      # Default user and database will be created using `init-defaults.sh` script
       CLICKHOUSE_DB:  ${CLICKHOUSE_DB}
       CLICKHOUSE_USER:  ${CLICKHOUSE_USER}
       CLICKHOUSE_PASSWORD:  ${CLICKHOUSE_PASSWORD}
@@ -63,6 +62,24 @@ services:
       - ./pg-data:/var/lib/postgresql/data 
 
 
+  db_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    command: uvicorn app:app --host 0.0.0.0 --port 8097
+    volumes:
+      - .:/code
+    network_mode: "host"
+    # environment:
+    #   PG_URL: ${PG_URL}
+    #   PG_URL_USERS: ${PG_URL_USERS}
+    #   CH: ${CH}
+    #   CH_URL: ${CH_URL}
+    #   CH_USER: ${CH_USER}
+    #   CH_PASSWORD: ${CH_PASSWORD}
+    #   IGNITE_DB_HOST: ${IGNITE_DB_HOST}
+    #   IGNITE_DB_PORT: ${IGNITE_DB_PORT}
+    restart: always
 
 networks:
   ch_network:

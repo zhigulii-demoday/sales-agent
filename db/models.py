@@ -5,8 +5,9 @@ from typing import List, Optional
 from pydantic import BaseConfig, BaseModel, ConfigDict
 from sqlalchemy import (Column, Date, DateTime, Float, ForeignKey, Integer,
                         String, Table, Time)
+
 from sqlalchemy import MetaData, text, func
-from sqlalchemy.dialects.postgresql import ARRAY, TEXT
+from sqlalchemy.dialects.postgresql import ARRAY, JSON, JSONB, TEXT
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -86,6 +87,30 @@ class Contact(Base):
     platform_uid: Mapped[str] 
 
     send_initial_message: Mapped[Optional[datetime.datetime]] = mapped_column(server_default=text('NULL'))
+
+    created_at: Mapped[Optional[datetime.datetime]] = mapped_column(server_default=func.CURRENT_TIMESTAMP())
+    updated_at: Mapped[Optional[datetime.datetime]] = mapped_column(server_default=func.CURRENT_TIMESTAMP())
+    deleted_at: Mapped[Optional[datetime.datetime]] = mapped_column(server_default=text('NULL'))
+
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    contact_id: Mapped[int] = mapped_column(ForeignKey("public.contacts.id"))
+    contact: Mapped["Contact"] = relationship()
+
+    type: Mapped[str] 
+    status: Mapped[str] 
+
+    start_after: Mapped[datetime.datetime]
+    next_schedule_at: Mapped[datetime.datetime]
+
+    payload: Mapped[dict] = mapped_column(JSONB)
+
+    scheduler_attempt_count: Mapped[Optional[int]]
+    max_scheduler_attempt_count: Mapped[Optional[int]]
 
     created_at: Mapped[Optional[datetime.datetime]] = mapped_column(server_default=func.CURRENT_TIMESTAMP())
     updated_at: Mapped[Optional[datetime.datetime]] = mapped_column(server_default=func.CURRENT_TIMESTAMP())

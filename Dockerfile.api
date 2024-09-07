@@ -1,0 +1,22 @@
+FROM python:3.12
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV TZ="Europe/Moscow"
+WORKDIR /code
+COPY api /code/api
+COPY db /code/db
+COPY .env /code/
+COPY app.py /code/
+COPY pyproject.toml /code/
+
+RUN mkdir --parents /usr/local/share/ca-certificates/Yandex/ 
+RUN wget "https://storage.yandexcloud.net/cloud-certs/RootCA.pem" --output-document /usr/local/share/ca-certificates/Yandex/RootCA.crt 
+RUN wget "https://storage.yandexcloud.net/cloud-certs/IntermediateCA.pem"      --output-document /usr/local/share/ca-certificates/Yandex/IntermediateCA.crt 
+RUN chmod 655 /usr/local/share/ca-certificates/Yandex/RootCA.crt      /usr/local/share/ca-certificates/Yandex/IntermediateCA.crt 
+RUN update-ca-certificates
+RUN python -m pip install --upgrade setuptools
+RUN pip install poetry && poetry config virtualenvs.create false && poetry install --no-dev
+
+
+EXPOSE 8097/tcp
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8097"]

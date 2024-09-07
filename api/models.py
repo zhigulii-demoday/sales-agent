@@ -3,6 +3,8 @@ from pydantic.functional_validators import AfterValidator
 from typing import List, Annotated
 
 
+
+
 class platform_post(BaseModel):
         name: str = Field(
                                 description="Наименование платформы"
@@ -45,3 +47,10 @@ class logs_get(BaseModel):
         is_user_message: bool 
         message: str 
         created_at: bool 
+
+
+
+
+class companies_post(BaseModel):
+    name: str
+    description: str
