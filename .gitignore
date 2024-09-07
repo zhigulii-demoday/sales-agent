@@ -140,3 +140,5 @@ dmypy.json
 clickhouse-data/
 pg-data/
 *.lock
+
+*.session

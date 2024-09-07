@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,8 @@ from fastapi.openapi.docs import (
 )
 from fastapi.staticfiles import StaticFiles
 
+from messages.emai_scripts import wait_for_reply
+from messages.telegram_scripts import main_listener
 
 app = FastAPI(
     debug=False,
@@ -24,6 +27,11 @@ app = FastAPI(
     redoc_url=None,
     swagger_ui_parameters={'syntaxHighlight': False}
 )
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(main_listener())
+    asyncio.create_task(wait_for_reply())
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 

@@ -21,7 +21,10 @@ pgvector = "^0.3.2"
 clickhouse-driver = "^0.2.9"
 typing-extensions = "^4.12.2"
 psycopg2-binary = "^2.9.9"
-
+aioimaplib = "^1.1.0"
+aiosmtplib = "^3.0.2"
+telethon = "^1.36.0"
+bs4 = "^0.0.2"
 
 
 [build-system]
