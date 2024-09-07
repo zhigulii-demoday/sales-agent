@@ -104,7 +104,7 @@ async def monitor_inbox(client: IMAP4_SSL):
         try:
             
             # Ждем некоторое время (например, 5 минут)
-            await asyncio.sleep(5)
+            await asyncio.sleep(300)
             await client.select('INBOX')
             print("Checking for new messages...")
             three_days_ago = (datetime.date.today() - datetime.timedelta(days=3)).strftime('%d-%b-%Y')
