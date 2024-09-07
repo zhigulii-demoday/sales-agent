@@ -107,7 +107,6 @@ async def monitor_inbox(client: IMAP4_SSL):
             await asyncio.sleep(300)
             await client.select('INBOX')
             print("Checking for new messages...")
-            three_days_ago = (datetime.date.today() - datetime.timedelta(days=3)).strftime('%d-%b-%Y')
             status, messages = await client.search(f'ALL UNSEEN')
 
             if status != 'OK' or not messages or not messages[0]:
