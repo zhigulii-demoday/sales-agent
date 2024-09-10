@@ -24,11 +24,21 @@ from langchain_experimental.utilities.python import PythonREPL
 
 class DialogueModel:
 
+    def init_pandas(self):
+        self.PATH_TO_DATASET = 'cleaned_coffee.csv'
+
+        delimeter = '\n\n' + ('='* 100) + '\n\n'
+        self.dataset = pd.read_csv(self.PATH_TO_DATASET)
+
+
     def init_model(self):
 
-        model_id = 'microsoft/Phi-3.5-mini-instruct'
-        repo_gguf_id = 'QuantFactory/Phi-3.5-mini-instruct-GGUF'
-        filename_gguf = 'Phi-3.5-mini-instruct.Q8_0.gguf'
+        self.init_pandas()
+
+        model_id = 'meta-llama/Meta-Llama-3.1-8B-Instruct'
+        repo_gguf_id = 'QuantFactory/Meta-Llama-3.1-8B-GGUF'
+        filename_gguf = 'Meta-Llama-3.1-8B.Q4_0.gguf'
+
 
         LOAD_GGUF_CONFIG = {
             'n_gpu_layers': 0, # not GPUs
@@ -52,29 +62,19 @@ class DialogueModel:
         self.USER = []
         self.ASSISTANT = []
 
-        self.cleaning_t2pandas = lambda answer: re.sub('python', '', answer.split('```')[1]).strip()
+        self.cleaning_t2pandas = lambda answer: re.sub('python', '', answer.split('```')[0]).strip()
 
+        return 'Model Initizalization Done'
 
-    def init_pandas(self):
-        self.PATH_TO_DATASET = 'dataset/cleaned_coffee.csv'
-
-        delimeter = '\n\n' + ('='* 100) + '\n\n'
-
-        # Interpreter Python
-
-
-
-        ### загрузка датасета
-        self.dataset = pd.read_csv(self.PATH_TO_DATASET)
         
 
 
 ### Инициализация диалога
 
-    def generate_first_message(self):
+    def generate_first_message(self) -> str:
         started_message_to_customer = self.model.inference_agent(self.messages_init)
         self.ASSISTANT.append(started_message_to_customer) # запоминаем диалог со стороны ассистента
-
+        return started_message_to_customer
         print(f'STEP #1:\n\nСООБЩЕНИЕ МОДЕЛИ ДЛЯ ИНИЦИАЛИЗАЦИИ: {started_message_to_customer}', end=';')
 
 
@@ -94,40 +94,39 @@ class DialogueModel:
         print(f'ВЫЯВЛЯЕМ НАМЕРЕНИЕ:\n\nНАМЕРЕНИЕ: {label_intention}', end=';')
 
         # без RAG'a
-        match label_intention:
-            case 'да':
-                print('КОНТЕКСТ:\n{CONTEXT_NAPOLEON_IT}', end=';')
 
-                messages = self.model.formating_chat_template(system=SYS_PROMPT_CONTINUE_DIALOGUE,
-                                                        context=CONTEXT_NAPOLEON_IT,
-                                                        user=self.USER,
-                                                        assistant=self.ASSISTANT)
-                agent = self.model.inference_agent(messages)
-            case 'нет':
-                path_to_data, columns, example = self.PATH_TO_DATASET, self.dataset.columns.to_list(), self.dataset.sample(1)
+        if 'да' in label_intention:
+            print('КОНТЕКСТ:\n{CONTEXT_NAPOLEON_IT}', end=';')
 
-                messages = self.model.formating_chat_template(system=SYS_PROMPT_TEXT_2_PANDAS,
-                                                        context=[path_to_data, columns, example],
-                                                        user=self.USER,
-                                                        assistant=self.ASSISTANT)
-                rag_agent = self.model.inference_agent(messages)
+            messages = self.model.formating_chat_template(system=SYS_PROMPT_CONTINUE_DIALOGUE,
+                                                    context=CONTEXT_NAPOLEON_IT,
+                                                    user=self.USER,
+                                                    assistant=self.ASSISTANT)
+            agent = self.model.inference_agent(messages)
+        elif 'нет' in label_intention:
+            path_to_data, columns, example = self.PATH_TO_DATASET, self.dataset.columns.to_list(), self.dataset.sample(1)
 
-                print(f'TEXT_2_PANDAS ЗАПРОС МОДЕЛИ:\n{rag_agent}', end=';')
+            messages = self.model.formating_chat_template(system=SYS_PROMPT_TEXT_2_PANDAS,
+                                                    context=[path_to_data, columns, example],
+                                                    user=self.USER,
+                                                    assistant=self.ASSISTANT)
+            rag_agent = self.model.inference_agent(messages)
 
-                CONTEXT_RAG = self.REPL.run(rag_agent)
-                CONTEXT_RAG = self.cleaning_t2pandas(CONTEXT_RAG)
+            print(f'TEXT_2_PANDAS ЗАПРОС МОДЕЛИ:\n{rag_agent}', end=';')
 
-                print(f'ПОЛУЧЕННЫЙ КОНТЕКСТ С RAGA:\n{CONTEXT_RAG}', end=';')
-                
-                messages = self.model.formating_chat_template(system=SYS_PROMPT_CONTINUE_DIALOGUE,
-                                                        context=[CONTEXT_RAG],
-                                                        user=customer,
-                                                        assistant=self.ASSISTANT)
-                agent = self.model.inference_agent(messages)
+            CONTEXT_RAG = self.REPL.run(rag_agent)
+            CONTEXT_RAG = self.cleaning_t2pandas(CONTEXT_RAG)
 
-                print(f'ОТВЕТ МОДЕЛИ ПО RAGy:\n{agent}', end=';')
-            case _:
-                pass
+            print(f'ПОЛУЧЕННЫЙ КОНТЕКСТ С RAGA:\n{CONTEXT_RAG}', end=';')
+            
+            messages = self.model.formating_chat_template(system=SYS_PROMPT_CONTINUE_DIALOGUE,
+                                                    context=[CONTEXT_RAG],
+                                                    user=customer,
+                                                    assistant=self.ASSISTANT)
+            agent = self.model.inference_agent(messages)
+
+            print(f'ОТВЕТ МОДЕЛИ ПО RAGy:\n{agent}', end=';')
+
 
 
         self.ASSISTANT.append(agent) # запоминаем диалог со стороны ассистента

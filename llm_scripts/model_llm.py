@@ -43,20 +43,19 @@ class SalesAgent:
 
     def inference_agent(self, messages: list[dict]) -> str:
         response = self.model.create_chat_completion(messages)
-
-        return response['choices'][0]['content']
+        return response['choices'][0]['message']['content']
     
 
     def formating_chat_template(self, 
                                 system: Callable,
                                 context: list[str],
                                 user: list[str],
-                                assistan: list[str]) -> list[dict]:
+                                assistant: list[str]) -> list[dict]:
         messages = [
                 {'role': 'system', 'content': system(*context)}
         ]
 
-        for assistant_replica, user_replica in zip(assistan, user):
+        for assistant_replica, user_replica in zip(assistant, user):
             
             messages.append(assistant_replica)
             messages.append(user_replica)
