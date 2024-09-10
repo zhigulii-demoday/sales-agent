@@ -4,6 +4,12 @@ import requests
 # with st.sidebar:
 #     openai_api_key = st.text_input("OpenAI API Key", key="chatbot_api_key", type="password")
 
+from llm_scripts.dialogue import DialogueModel
+
+d_model = DialogueModel()
+d_model.init_model()
+
+
 st.title("💬 Chatbot")
 
 if "messages" not in st.session_state:

@@ -1,4 +1,4 @@
-from llm.dialogue import DialogueModel
+from llm_scripts.dialogue import DialogueModel
 
 
 

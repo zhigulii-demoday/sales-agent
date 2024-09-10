@@ -1,5 +1,5 @@
 
-from llm.prompts import (CONTEXT_NAPOLEON_IT,
+from llm_scripts.prompts import (CONTEXT_NAPOLEON_IT,
                         SALES_SCRIPT, 
                         SYS_PROMPT_INIT_DIALOGUE,
                         USER_INIT_PROMPT,
@@ -8,7 +8,7 @@ from llm.prompts import (CONTEXT_NAPOLEON_IT,
                         SYS_PROMPT_TEXT_2_PANDAS
                         )
 
-from llm.model_llm import SalesAgent
+from llm_scripts.model_llm import SalesAgent
 
 import os
 import re
