@@ -111,6 +111,7 @@ env/
 env_admin/
 env_local/
 venv/
+venv_llm/
 data/
 ENV/
 env.bak/
@@ -141,4 +142,5 @@ clickhouse-data/
 pg-data/
 *.lock
 
+*.session
 *.session
