@@ -144,3 +144,4 @@ pg-data/
 
 *.session
 *.session
+*.gguf

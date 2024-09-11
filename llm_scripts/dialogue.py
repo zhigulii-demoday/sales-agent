@@ -35,15 +35,16 @@ class DialogueModel:
 
         self.init_pandas()
 
-        model_id = 'meta-llama/Meta-Llama-3.1-8B-Instruct'
-        repo_gguf_id = 'QuantFactory/Meta-Llama-3.1-8B-GGUF'
-        filename_gguf = 'Meta-Llama-3.1-8B.Q4_0.gguf'
+        model_id = 'microsoft/Phi-3.5-mini-instruct'
+        repo_gguf_id = 'QuantFactory/Phi-3.5-mini-instruct-GGUF'
+        filename_gguf = 'Phi-3.5-mini-instruct.Q8_0.gguf'
 
 
         LOAD_GGUF_CONFIG = {
-            'n_gpu_layers': 0, # not GPUs
+            'n_gpu_layers': -1, # not GPUs
             'n_threads': 32, # for CPUs
-            'n_ctx': 4096  # length context ...
+            'n_ctx': 8192,
+            'n_batch': 2048  # length context ...
         }
 
         self.model = SalesAgent(model_id,
@@ -95,15 +96,15 @@ class DialogueModel:
 
         # без RAG'a
 
-        if 'да' in label_intention:
+        if 'да' in label_intention.lower():
             print('КОНТЕКСТ:\n{CONTEXT_NAPOLEON_IT}', end=';')
 
             messages = self.model.formating_chat_template(system=SYS_PROMPT_CONTINUE_DIALOGUE,
-                                                    context=CONTEXT_NAPOLEON_IT,
+                                                    context=[CONTEXT_NAPOLEON_IT],
                                                     user=self.USER,
                                                     assistant=self.ASSISTANT)
             agent = self.model.inference_agent(messages)
-        elif 'нет' in label_intention:
+        elif 'нет' in label_intention.lower():
             path_to_data, columns, example = self.PATH_TO_DATASET, self.dataset.columns.to_list(), self.dataset.sample(1)
 
             messages = self.model.formating_chat_template(system=SYS_PROMPT_TEXT_2_PANDAS,
