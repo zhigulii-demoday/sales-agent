@@ -22,6 +22,8 @@ import openai
 import sqlparse
 
 
+import openai
+
 import torch
 from llama_cpp import Llama
 from huggingface_hub import hf_hub_download
