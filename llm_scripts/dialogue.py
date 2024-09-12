@@ -15,6 +15,8 @@ import re
 import pandas as pd
 from typing import Callable
 
+import openai
+
 import torch
 from llama_cpp import Llama
 from huggingface_hub import hf_hub_download
@@ -35,22 +37,25 @@ class DialogueModel:
 
         self.init_pandas()
 
-        model_id = 'microsoft/Phi-3.5-mini-instruct'
-        repo_gguf_id = 'QuantFactory/Phi-3.5-mini-instruct-GGUF'
-        filename_gguf = 'Phi-3.5-mini-instruct.Q8_0.gguf'
+        # model_id = 'microsoft/Phi-3.5-mini-instruct'
+        # repo_gguf_id = 'QuantFactory/Phi-3.5-mini-instruct-GGUF'
+        # filename_gguf = 'Phi-3.5-mini-instruct.Q8_0.gguf'
 
 
-        LOAD_GGUF_CONFIG = {
-            'n_gpu_layers': -1, # not GPUs
-            'n_threads': 32, # for CPUs
-            'n_ctx': 8192,
-            'n_batch': 2048  # length context ...
-        }
+        # LOAD_GGUF_CONFIG = {
+        #     'n_gpu_layers': -1, # not GPUs
+        #     'n_threads': 32, # for CPUs
+        #     'n_ctx': 8192,
+        #     'n_batch': 2048  # length context ...
+        # }
 
-        self.model = SalesAgent(model_id,
-                        repo_gguf_id,
-                        filename_gguf,
-                        LOAD_GGUF_CONFIG)
+        # self.model = SalesAgent(model_id,
+        #                 repo_gguf_id,
+        #                 filename_gguf,
+        #                 LOAD_GGUF_CONFIG)
+
+        self.model = openai.Client(
+                    base_url="http://79.117.121.60:30000/v1", api_key="EMPTY")
 
         self.REPL = PythonREPL()
 
@@ -73,7 +78,13 @@ class DialogueModel:
 ### Инициализация диалога
 
     def generate_first_message(self) -> str:
-        started_message_to_customer = self.model.inference_agent(self.messages_init)
+        #started_message_to_customer = self.model.inference_agent(self.messages_init)
+        started_message_to_customer = self.model.chat.completions.create(
+                        model="default",
+                        messages= self.messages_init,
+                        temperature=0,
+                        max_tokens=64,
+                    )
         self.ASSISTANT.append(started_message_to_customer) # запоминаем диалог со стороны ассистента
         return started_message_to_customer
         print(f'STEP #1:\n\nСООБЩЕНИЕ МОДЕЛИ ДЛЯ ИНИЦИАЛИЗАЦИИ: {started_message_to_customer}', end=';')
@@ -90,7 +101,13 @@ class DialogueModel:
             {'role': 'system', 'content': SYS_PROMPT_FOR_INTENTION},
             {'role': 'user', 'content': customer}
         ]
-        label_intention = self.model.inference_agent(messages_intent)
+        #label_intention = self.model.inference_agent(messages_intent)
+        label_intention = self.model.chat.completions.create(
+                        model="default",
+                        messages= self.messages_intent,
+                        temperature=0,
+                        max_tokens=64,
+                    )
 
         print(f'ВЫЯВЛЯЕМ НАМЕРЕНИЕ:\n\nНАМЕРЕНИЕ: {label_intention}', end=';')
 
