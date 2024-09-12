@@ -15,12 +15,35 @@ import re
 import pandas as pd
 from typing import Callable
 
+import psycopg2 as pg
+
+import openai
+
+import sqlparse
+
+
 import torch
 from llama_cpp import Llama
 from huggingface_hub import hf_hub_download
 from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig
 from langchain_experimental.utilities.python import PythonREPL
 
+def formating_chat_template(system: Callable,
+                            context: list[str],
+                            user: list[str],
+                            assistant: list[str]) -> list[dict]:
+    messages = [
+            {'role': 'system', 'content': system(*context)}
+    ]
+
+    for assistant_replica, user_replica in zip(assistant, user):
+        
+        messages.append(assistant_replica)
+        messages.append(user_replica)
+
+    return messages
+
+MAX_TOKENS = 2048 * 2
 
 class DialogueModel:
 
@@ -35,22 +58,8 @@ class DialogueModel:
 
         self.init_pandas()
 
-        model_id = 'microsoft/Phi-3.5-mini-instruct'
-        repo_gguf_id = 'QuantFactory/Phi-3.5-mini-instruct-GGUF'
-        filename_gguf = 'Phi-3.5-mini-instruct.Q8_0.gguf'
-
-
-        LOAD_GGUF_CONFIG = {
-            'n_gpu_layers': -1, # not GPUs
-            'n_threads': 32, # for CPUs
-            'n_ctx': 8192,
-            'n_batch': 2048  # length context ...
-        }
-
-        self.model = SalesAgent(model_id,
-                        repo_gguf_id,
-                        filename_gguf,
-                        LOAD_GGUF_CONFIG)
+        self.model = openai.Client(
+                    base_url="http://47.186.63.233:53213/v1", api_key="EMPTY")
 
         self.REPL = PythonREPL()
 
@@ -63,6 +72,8 @@ class DialogueModel:
         self.USER = []
         self.ASSISTANT = []
 
+        self.engine = pg.connect("dbname='sales' user='zhigul' host='89.169.163.130' port='5432' password='asd'")
+
         self.cleaning_t2pandas = lambda answer: re.sub('python', '', answer.split('```')[0]).strip()
 
         return 'Model Initizalization Done'
@@ -73,7 +84,16 @@ class DialogueModel:
 ### Инициализация диалога
 
     def generate_first_message(self) -> str:
-        started_message_to_customer = self.model.inference_agent(self.messages_init)
+        #started_message_to_customer = self.model.inference_agent(self.messages_init)
+        started_message_to_customer = self.model.chat.completions.create(
+                        model="default",
+                        messages= self.messages_init,
+                        temperature=0,
+                        max_tokens=MAX_TOKENS,
+                    )
+        if started_message_to_customer:
+            started_message_to_customer = started_message_to_customer.choices[0].message.content
+
         self.ASSISTANT.append(started_message_to_customer) # запоминаем диалог со стороны ассистента
         return started_message_to_customer
         print(f'STEP #1:\n\nСООБЩЕНИЕ МОДЕЛИ ДЛЯ ИНИЦИАЛИЗАЦИИ: {started_message_to_customer}', end=';')
@@ -90,45 +110,155 @@ class DialogueModel:
             {'role': 'system', 'content': SYS_PROMPT_FOR_INTENTION},
             {'role': 'user', 'content': customer}
         ]
-        label_intention = self.model.inference_agent(messages_intent)
+        #label_intention = self.model.inference_agent(messages_intent)
+        label_intention = self.model.chat.completions.create(
+                        model="default",
+                        messages= messages_intent,
+                        temperature=0,
+                        max_tokens=MAX_TOKENS,
+                    )
+        if label_intention:
+            label_intention = label_intention.choices[0].message.content
 
         print(f'ВЫЯВЛЯЕМ НАМЕРЕНИЕ:\n\nНАМЕРЕНИЕ: {label_intention}', end=';')
 
         # без RAG'a
 
-        if 'да' in label_intention.lower():
+        if 'нет' in label_intention.lower():
             print('КОНТЕКСТ:\n{CONTEXT_NAPOLEON_IT}', end=';')
 
-            messages = self.model.formating_chat_template(system=SYS_PROMPT_CONTINUE_DIALOGUE,
+            messages = formating_chat_template(system=SYS_PROMPT_CONTINUE_DIALOGUE,
                                                     context=[CONTEXT_NAPOLEON_IT],
                                                     user=self.USER,
                                                     assistant=self.ASSISTANT)
-            agent = self.model.inference_agent(messages)
-        elif 'нет' in label_intention.lower():
+            agent = self.model.chat.completions.create(
+                        model="default",
+                        messages= messages,
+                        temperature=0,
+                        max_tokens=MAX_TOKENS,
+                    )
+            if agent:
+                agent = agent.choices[0].message.content
+
+        elif 'да' in label_intention.lower():
+
+
             path_to_data, columns, example = self.PATH_TO_DATASET, self.dataset.columns.to_list(), self.dataset.sample(1)
-
-            messages = self.model.formating_chat_template(system=SYS_PROMPT_TEXT_2_PANDAS,
-                                                    context=[path_to_data, columns, example],
-                                                    user=self.USER,
-                                                    assistant=self.ASSISTANT)
-            rag_agent = self.model.inference_agent(messages)
-
-            print(f'TEXT_2_PANDAS ЗАПРОС МОДЕЛИ:\n{rag_agent}', end=';')
-
-            CONTEXT_RAG = self.REPL.run(rag_agent)
-            CONTEXT_RAG = self.cleaning_t2pandas(CONTEXT_RAG)
-
-            print(f'ПОЛУЧЕННЫЙ КОНТЕКСТ С RAGA:\n{CONTEXT_RAG}', end=';')
-            
-            messages = self.model.formating_chat_template(system=SYS_PROMPT_CONTINUE_DIALOGUE,
-                                                    context=[CONTEXT_RAG],
-                                                    user=customer,
-                                                    assistant=self.ASSISTANT)
-            agent = self.model.inference_agent(messages)
-
-            print(f'ОТВЕТ МОДЕЛИ ПО RAGy:\n{agent}', end=';')
-
+            is_it_sql = self.classify_rag_or_text2sql(customer)
+            if 'да' in is_it_sql.lower():
+                sql_res = self.generate_text2sql_response(customer)
+                agent = self.query(sql_res, self.engine)
+            else:
+                agent = self.generate_rag_response(customer, self.dataset)
 
 
         self.ASSISTANT.append(agent) # запоминаем диалог со стороны ассистента
         return agent
+
+    def query(self, sql, engine):
+        print(f'"SQL QUERY:\n {sql}"')
+        return pd.read_sql(sql, con=engine)
+    
+    def classify_rag_or_text2sql(self, client_query):
+        system_prompt = f"""Ты должен будешь определить, можно-ли перевести отправленое тебе предложение в SQL. 
+                            Ты должен отвечать на вопросы только 'Да' и 'Нет'.
+                        """
+        user_prompt = client_query
+
+        message = [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_prompt}
+        ]
+
+        result = self.model.chat.completions.create(
+                        model="default",
+                        messages= message,
+                        temperature=0,
+                        max_tokens=MAX_TOKENS,
+                    )
+
+
+
+        return result.choices[0].message.content
+
+    def generate_text2sql_response(self, client_query):
+        schema = """CREATE TABLE reviews (
+        id INTEGER DEFAULT nextval('reviews_id_seq'::regclass) NOT NULL, 
+        company_id INTEGER NOT NULL, 
+        product_cat VARCHAR, 
+        product_name VARCHAR, 
+        review_dt TIMESTAMP, 
+        review_text VARCHAR, 
+        topic VARCHAR, 
+        sentiment  ENUM ('Positive', 'Negative'), 
+        marketplace VARCHAR, 
+        embedding VECTOR(20), 
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+        deleted_at TIMESTAMP, 
+        CONSTRAINT reviews_pkey PRIMARY KEY (id), 
+        CONSTRAINT reviews_company_id_fkey FOREIGN KEY(company_id) REFERENCES companies (id)
+            )      
+        """
+        sql_example = "SELECT * FROM reviews WHERE topic == 'Вкус"
+        user_prompt = client_query
+        system_prompt = f"""
+                Generate a Postgresql SQL query to answer the following question:
+                `{user_prompt}
+                Please wrap your code answer using ```sql:
+                ### Database Schema
+                This query will run on a database whose schema is represented in this string:
+                Don't use joins for this schema and if all columns are required give the (*) notation.
+                `{schema}`
+                An example of the SQL would be `{sql_example}`
+                ### SQL
+                Given the database schema, here is the SQL query that answers `{user_prompt}`:
+                ```sql
+                """
+
+        message = [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_prompt}
+        ]
+        
+        #result = self.sql_llm.create_chat_completion(messages=message)
+        result = self.model.chat.completions.create(
+                model="default",
+                messages= message,
+                temperature=0,
+                max_tokens=MAX_TOKENS,
+            )
+        if result:
+            result = result.choices[0].message.content
+
+        print(f"Ответ модели: {sqlparse.format(result.split('```')[-2], reindent=True).replace('#','').replace('sql ','').replace('sql\n', '')}")
+        return sqlparse.format(result.split('```')[-2], reindent=True).replace('#','').replace('sql ','').replace("sql\n", "")
+
+    def generate_rag_response(self, client_query, relevant_reviews):
+        review_texts = '\n'.join(relevant_reviews['Review Text'].tolist())
+        system_prompt = f"""Ты профессиональный агент-продавец, опыт которого в продажах больше 10 лет.
+            Ты ведешь диалог с клиентом, которому предлагаешь сотрудничество по продукту "Napoleon IT Отзывы".
+            Ты должен обрабатывать любые вопросы потенциального клиента, предоставляя только релевантную и достовернную информацию, используя контекст.
+            Не груби и будь дружелюбным собесебником.
+            Отвечай только на Русском.
+
+            Обработай запрос клиента и выдай точную информацию:
+            Вот отзывы о товарах клиента: {review_texts}. Ответь на вопрос клиента на опираясь на них.
+            """
+        user_prompt = f"Клиент спросил: '{client_query}'"
+
+        message = [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_prompt}
+        ]
+    
+        rag_agent = self.model.chat.completions.create(
+                    model="default",
+                    messages= message,
+                    temperature=0,
+                    max_tokens=MAX_TOKENS,
+                    )
+        if rag_agent:
+            rag_agent = rag_agent.choices[0].message.content
+        
+        return rag_agent

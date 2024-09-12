@@ -4,17 +4,14 @@ import requests
 # with st.sidebar:
 #     openai_api_key = st.text_input("OpenAI API Key", key="chatbot_api_key", type="password")
 
-from llm_scripts.dialogue import DialogueModel
+from llm_scripts.sales_handler import SalesBotHandler
 
 import time
 
-d_model = DialogueModel()
+d_model = SalesBotHandler()
 
 with st.spinner('Loading Language Model...'):
-    print(
-        d_model.init_model()
-    )
-    d_model.init_pandas()
+    d_model = SalesBotHandler()
 
 
 st.title("💬 Chatbot")
