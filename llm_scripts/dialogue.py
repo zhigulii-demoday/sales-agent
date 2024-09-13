@@ -30,6 +30,8 @@ from huggingface_hub import hf_hub_download
 from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig
 from langchain_experimental.utilities.python import PythonREPL
 
+MAX_TOKENS = 131024
+
 def formating_chat_template(system: Callable,
                             context: list[str],
                             user: list[str],
@@ -45,7 +47,6 @@ def formating_chat_template(system: Callable,
 
     return messages
 
-MAX_TOKENS = 2048 * 2
 
 class DialogueModel:
 
@@ -90,7 +91,7 @@ class DialogueModel:
         started_message_to_customer = self.model.chat.completions.create(
                         model="default",
                         messages= self.messages_init,
-                        temperature=0,
+                        temperature=0.5,
                         max_tokens=MAX_TOKENS,
                     )
         if started_message_to_customer:
