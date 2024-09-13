@@ -8,7 +8,7 @@ from llm_scripts.prompts import (CONTEXT_NAPOLEON_IT,
                         SYS_PROMPT_TEXT_2_PANDAS
                         )
 
-from llm_scripts.model_llm import SalesAgent
+
 
 import os
 import re
@@ -24,10 +24,6 @@ import sqlparse
 
 import openai
 
-import torch
-from llama_cpp import Llama
-from huggingface_hub import hf_hub_download
-from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig
 from langchain_experimental.utilities.python import PythonREPL
 
 # MAX_TOKENS = 131072
@@ -268,7 +264,7 @@ class DialogueModel:
         if result:
             result = result.choices[0].message.content
 
-        print(f"Ответ модели: {sqlparse.format(result.split('```')[-2], reindent=True).replace('#','').replace('sql ','').replace('sql\n', '')}")
+        #print(f"Ответ модели: {sqlparse.format(result.split('```')[-2], reindent=True).replace('#','').replace('sql ','').replace('sql\n', '')}")
         return sqlparse.format(result.split('```')[-2], reindent=True).replace('#','').replace('sql ','').replace("sql\n", "")
 
     def generate_rag_response(self, client_query, relevant_reviews):

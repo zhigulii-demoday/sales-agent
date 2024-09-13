@@ -38,6 +38,8 @@ async def listener():
 
                     # TODO: Добавить эндпоинт
                     print(request_body)
+                    msg = d_model.generate_answer(message)
+                    await send_message(sender.username, msg, message_id) 
                     #requests.post(url=BASE_API_URL+'tg_endpoint', data=request_body.to_json())
                     
         await client.run_until_disconnected()

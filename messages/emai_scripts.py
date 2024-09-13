@@ -84,6 +84,9 @@ async def process_message(data, client: IMAP4_SSL, from_email):
             soup = BeautifulSoup(html_content, 'html.parser')
             body = soup.get_text()
 
+    
+    msg = d_model.generate_answer(body)
+    await send_email(username, msg, message_id, subject)
     request_body = models.AnswerModel(username, body, message_id, 'mail')
 
     # TODO: Добавить эндпоинт
