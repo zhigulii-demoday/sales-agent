@@ -125,6 +125,7 @@
 
 2. **Установка зависимостей**:
    ```bash
+   pip install poetry
    poetry install
    ```
 
@@ -133,11 +134,33 @@
    docker-compose up
    ```
 
-4. **Запуск приложения**:
+4. **Запуск приложения (фронт)**:
    ```bash
-   poetry run python app.py
+   streamlit run front.py
    ```
 
+### Шаги по установке модели:
+
+1. **Клонирование репозитория**:
+   ```bash
+   git clone <repository-url>
+   cd <project-directory>
+   ```
+
+2. **Установка зависимостей**:
+   ```bash
+   pip install poetry &&
+   poetry install &&
+   pip install python-multipart &&
+   poetry add flashinfer -i https://flashinfer.ai/whl/cu121/torch2.4/ &&
+   pip install sglang &&
+   CMAKE_ARGS="-DLLAVA_BUILD=OFF" pip install -U llama-cpp-python
+   ```
+
+3. **Запуск модели**:
+   ```bash
+   python -m sglang.launch_server --model-path NousResearch/Meta-Llama-3.1-8B-Instruct --port 30000 --dtype bfloat16 --quantization fp8 --mem-fraction-static 0.931 --disable-cuda-graph --host 0.0.0.0
+   ```
 
 ### Описание файла ENV
 
