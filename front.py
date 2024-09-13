@@ -1,3 +1,4 @@
+import asyncio
 import streamlit as st
 
 import requests
@@ -9,6 +10,8 @@ from llm_scripts.sales_handler import SalesBotHandler
 import time
 
 d_model = SalesBotHandler()
+from messages.telegram_scripts import send_message
+from messages.emai_scripts import send_email
 
 with st.spinner('Loading Language Model...'):
     d_model = SalesBotHandler()
@@ -87,3 +90,16 @@ with tab1:
 
     for msg in st.session_state["messages"]:
         st.chat_message(msg['role']).write(msg['content'])
+        
+with st.sidebar:
+    st.markdown("### Отправить сообщение")
+
+    recipient = st.text_input("Введите адрес получателя")
+
+    platform = st.selectbox("Выберите платформу", ["Telegram", "Email"])
+
+    if st.button("Отправить"):
+        if platform == "Email":
+            asyncio.run(send_email(to_email=recipient, body=d_model.generate_first_message(), subject="Napoleon IT Отзывы"))
+        elif platform == "Telegram":
+            asyncio.run(send_message(user=recipient, message=d_model.generate_first_message()))

@@ -30,14 +30,17 @@ from huggingface_hub import hf_hub_download
 from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig
 from langchain_experimental.utilities.python import PythonREPL
 
-MAX_TOKENS = 131024
+# MAX_TOKENS = 131072
+MAX_TOKENS = 300000
 
 def formating_chat_template(system: Callable,
                             context: list[str],
                             user: list[str],
+                            user_question: str,
                             assistant: list[str]) -> list[dict]:
     messages = [
-            {'role': 'system', 'content': system(*context)}
+            {'role': 'system', 'content': system(*context)},
+            {'role': 'user', 'content': user_question}
     ]
 
     for assistant_replica, user_replica in zip(assistant, user):
@@ -55,7 +58,6 @@ class DialogueModel:
 
         delimeter = '\n\n' + ('='* 100) + '\n\n'
         self.dataset = pd.read_csv(self.PATH_TO_DATASET)
-
 
     def init_model(self):
 
@@ -80,10 +82,36 @@ class DialogueModel:
         self.cleaning_t2pandas = lambda answer: re.sub('python', '', answer.split('```')[0]).strip()
 
         return 'Model Initizalization Done'
+    
+    def rag_answer_processor(self, customer_question: str, rag_answer: pd.DataFrame):
+        system_prompt = f"""Ты профессиональный агент-продавец, опыт которого в продажах больше 10 лет.
+            Ты ведешь диалог с клиентом, которому предлагаешь сотрудничество по продукту "Napoleon IT Отзывы".
+            Ты должен обрабатывать любые вопросы потенциального клиента, предоставляя только релевантную и достовернную информацию, используя контекст.
+            Не груби и будь дружелюбным собесебником.
+            Отвечай только на Русском.
+
+            Обработай запрос клиента и выдай точную информацию:
+            Вот чистый ответ на следующий вопрос клиента: {rag_answer}. Дай его в развернутой форме.
+            """
+        user_prompt = f"Клиент спросил: '{customer_question}'"
+
+        message = [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_prompt}
+        ]
+    
+        rag_agent = self.model.chat.completions.create(
+                    model="default",
+                    messages= message,
+                    temperature=0,
+                    max_tokens=MAX_TOKENS,
+                    )
+        if rag_agent:
+            rag_agent = rag_agent.choices[0].message.content
+        
+        return rag_agent
 
         
-
-
 ### Инициализация диалога
 
     def generate_first_message(self) -> str:
@@ -92,7 +120,7 @@ class DialogueModel:
                         model="default",
                         messages= self.messages_init,
                         temperature=0.5,
-                        max_tokens=MAX_TOKENS,
+                        max_tokens=MAX_TOKENS
                     )
         if started_message_to_customer:
             started_message_to_customer = started_message_to_customer.choices[0].message.content
@@ -133,6 +161,7 @@ class DialogueModel:
             messages = formating_chat_template(system=SYS_PROMPT_CONTINUE_DIALOGUE,
                                                     context=[CONTEXT_NAPOLEON_IT],
                                                     user=self.USER,
+                                                    user_question=customer,
                                                     assistant=self.ASSISTANT)
             agent = self.model.chat.completions.create(
                         model="default",
@@ -142,6 +171,8 @@ class DialogueModel:
                     )
             if agent:
                 agent = agent.choices[0].message.content
+            
+            # agent = self.rag_answer_processor(customer, agent)
 
         elif 'да' in label_intention.lower():
 
@@ -149,12 +180,15 @@ class DialogueModel:
             path_to_data, columns, example = self.PATH_TO_DATASET, self.dataset.columns.to_list(), self.dataset.sample(1)
             is_it_sql = self.classify_rag_or_text2sql(customer)
             if 'да' in is_it_sql.lower():
-                sql_res = self.generate_text2sql_response(customer)
-                agent = self.query(sql_res, self.engine)
+                try:
+                    sql_res = self.generate_text2sql_response(customer)
+                    agent = self.query(sql_res, self.engine)
+                except:
+                    agent = self.generate_rag_response(customer, self.dataset)
             else:
                 agent = self.generate_rag_response(customer, self.dataset)
 
-
+            agent = self.rag_answer_processor(customer, agent)
         self.ASSISTANT.append(agent) # запоминаем диалог со стороны ассистента
         return agent
 

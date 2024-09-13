@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import requests
 from . import models
 from .cache_ops import load_cache, update_cache
+from front import d_model
 
 load_dotenv()
 

@@ -14,7 +14,7 @@ from . import models
 from email.utils import parseaddr
 from bs4 import BeautifulSoup
 from .cache_ops import update_cache, load_cache
-
+from front import d_model
 load_dotenv()
 
 BASE_API_URL = os.getenv('BASE_API_URL')
